@@ -1,0 +1,21 @@
+<resources>
+    <string name="app_name">FivePlay Mobile</string>
+    <string name="hub_subtitle">Trình giả lập Tay Cầm &amp; Chuột PC chơi GTA 5 trên fiveplay.lol</string>
+    <string name="btn_play_now">VÀO GAME NGAY (LANDSCAPE)</string>
+    <string name="btn_play_portrait">CHƠI DỌC</string>
+    <string name="tab_play">Chơi Game</string>
+    <string name="tab_controls">Tay Cầm &amp; Phím</string>
+    <string name="tab_settings">Tối Ưu WebGL</string>
+    <string name="profile_on_foot">Đi Bộ / Bắn Súng</string>
+    <string name="profile_driving">Lái Xe / Đua Xe</string>
+    <string name="profile_gamepad">Tay Cầm Xbox Ảo</string>
+    <string name="profile_minimal">Tối Giản (Touch)</string>
+    <string name="hud_toggle_controls">Ẩn/Hiện Phím</string>
+    <string name="hud_switch_mode">Đổi Chế Độ Lái/Đi Bộ</string>
+    <string name="hud_fullscreen">Xoay Ngang / Dọc</string>
+    <string name="hud_keyboard">Gõ Chat / Bàn Phím</string>
+    <string name="hud_reload">Tải Lại Trang</string>
+    <string name="hud_hub">Menu Cài Đặt</string>
+    <string name="custom_key_dialog_title">Gán Phím Bàn Phím / Chuột PC</string>
+    <string name="server_url_label">Địa chỉ máy chủ Web Game</string>
+</resources>

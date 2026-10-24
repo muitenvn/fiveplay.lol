@@ -1,0 +1,6 @@
+{
+  "name": "FivePlay Mobile",
+  "description": "Trình khởi chạy và tay cầm ảo chuyên dụng giúp chơi GTA 5 trên fiveplay.lol mượt mà ngay trên điện thoại Android.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}

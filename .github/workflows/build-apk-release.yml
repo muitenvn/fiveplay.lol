@@ -25,8 +25,6 @@ jobs:
     steps:
       - name: Checkout Source Code
         uses: actions/checkout@v4
-        with:
-          fetch-depth: 0
 
       - name: Set up JDK 21
         uses: actions/setup-java@v4
@@ -37,60 +35,13 @@ jobs:
       - name: Setup Android SDK
         uses: android-actions/setup-android@v3
 
-      - name: Install Android SDK packages required by project
-        shell: bash
-        run: |
-          set -euo pipefail
-
-          export ANDROID_HOME="${ANDROID_HOME:-/usr/local/lib/android/sdk}"
-          export ANDROID_SDK_ROOT="$ANDROID_HOME"
-
-          echo "ANDROID_HOME=$ANDROID_HOME" >> "$GITHUB_ENV"
-          echo "ANDROID_SDK_ROOT=$ANDROID_SDK_ROOT" >> "$GITHUB_ENV"
-
-          echo "$ANDROID_HOME/cmdline-tools/latest/bin" >> "$GITHUB_PATH"
-          echo "$ANDROID_HOME/platform-tools" >> "$GITHUB_PATH"
-
-          if [ ! -f "$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager" ]; then
-            echo "sdkmanager not found"
-            ls -R "$ANDROID_HOME" || true
-            exit 1
-          fi
-
-          yes | "$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager" --licenses >/dev/null 2>&1 || true
-
-          "$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager" \
-            "platform-tools" \
-            "platforms;android-36" \
-            "platforms;android-36.1" \
-            "build-tools;36.0.0"
-
-      - name: Setup Gradle
+      - name: Setup Gradle 9.3.1
         uses: gradle/actions/setup-gradle@v4
         with:
           gradle-version: "9.3.1"
 
-      - name: Make gradlew executable
-        shell: bash
+      - name: Prepare Keystores for Debug & Release Signing
         run: |
-          set -e
-          if [ -f ./gradlew ]; then
-            chmod +x ./gradlew
-            sed -i 's/\r$//' ./gradlew || true
-          else
-            echo "gradlew not found"
-            exit 1
-          fi
-
-      - name: Prepare .env and keystores
-        shell: bash
-        run: |
-          set -e
-
-          if [ ! -f ".env" ] && [ -f ".env.example" ]; then
-            cp .env.example .env
-          fi
-
           if [ ! -f "debug.keystore" ]; then
             keytool -genkeypair -v \
               -keystore debug.keystore \
@@ -102,7 +53,6 @@ jobs:
               -validity 10000 \
               -dname "CN=Android Debug,O=Android,C=US"
           fi
-
           if [ ! -f "my-upload-key.jks" ]; then
             keytool -genkeypair -v \
               -keystore my-upload-key.jks \
@@ -115,26 +65,28 @@ jobs:
               -dname "CN=FivePlay Mobile,OU=Mobile,O=FivePlay,L=VN,S=VN,C=VN"
           fi
 
+      - name: Ensure .env exists from .env.example
+        run: |
+          if [ ! -f ".env" ] && [ -f ".env.example" ]; then
+            cp .env.example .env
+          fi
+
       - name: Build Debug & Signed Release APKs
-        shell: bash
         env:
           KEYSTORE_PATH: ${{ github.workspace }}/my-upload-key.jks
           STORE_PASSWORD: android123
           KEY_PASSWORD: android123
         run: |
-          set -e
-          ./gradlew assembleDebug assembleRelease --no-daemon --stacktrace
+          gradle assembleDebug assembleRelease --no-daemon --stacktrace
 
       - name: Prepare Release APK Files
-        shell: bash
         run: |
-          set -e
           mkdir -p release-apks
-          cp -f app/build/outputs/apk/debug/app-debug.apk release-apks/FivePlay-Mobile-Debug.apk
-          cp -f app/build/outputs/apk/release/app-release.apk release-apks/FivePlay-Mobile-Release-Signed.apk
+          cp app/build/outputs/apk/debug/app-debug.apk release-apks/FivePlay-Mobile-Debug.apk
+          cp app/build/outputs/apk/release/app-release.apk release-apks/FivePlay-Mobile-Release-Signed.apk
           ls -lh release-apks/
 
-      - name: Upload APK Artifacts
+      - name: Upload APK Artifacts (Actions Tab)
         uses: actions/upload-artifact@v4
         with:
           name: FivePlay-Mobile-APKs
@@ -142,22 +94,19 @@ jobs:
           if-no-files-found: error
 
       - name: Publish APK to GitHub Releases
-        if: success() && (github.event_name == 'workflow_dispatch' || github.ref == 'refs/heads/main' || github.ref == 'refs/heads/master' || startsWith(github.ref, 'refs/tags/'))
         uses: softprops/action-gh-release@v2
         with:
           tag_name: ${{ github.event.inputs.release_tag || format('v1.0.{0}', github.run_number) }}
           name: "FivePlay Mobile APK (${{ github.event.inputs.release_tag || format('v1.0.{0}', github.run_number) }})"
           body: |
             ## FivePlay Mobile - Chơi GTA 5 (fiveplay.lol) trên Điện Thoại Android
-
             ### File cài đặt APK:
-            - **`FivePlay-Mobile-Release-Signed.apk`**: Bản chính thức đã ký chứng chỉ (khuyên dùng để cài lên điện thoại).
+            - **`FivePlay-Mobile-Release-Signed.apk`**: Bản chính thức đã đóng chữ ký (khuyên dùng cài trên điện thoại).
             - **`FivePlay-Mobile-Debug.apk`**: Bản thử nghiệm Debug.
 
             ### Tính năng bao gồm:
-            - Con trỏ Chuột Mũi Tên PC thực thụ
-            - Chế độ Khóa Tâm 3D 360°
-            - Hệ thống điều khiển GTA 5 / FiveM trên điện thoại
+            - Con trỏ Chuột PC thực thụ (di chuột & chạm nhẹ Click Chuột Trái) + Chế độ Tâm 3D 360 độ.
+            - Đầy đủ hệ thống nút GTA 5 / FiveM: `WASD`, `Shift`, `Ctrl`, `Alt`, `Space`, `F`, `E`, `R`, `Q`, `G`, `X`, `C`, `V`, `N`, `1-5`, `F1-F8`, cụm phím Điện Thoại GTA và Bàn Phím PC nổi.
           files: |
             release-apks/FivePlay-Mobile-Release-Signed.apk
             release-apks/FivePlay-Mobile-Debug.apk

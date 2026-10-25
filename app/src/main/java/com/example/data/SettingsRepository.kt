@@ -19,10 +19,10 @@ private val Context.dataStore: DataStore<Preferences> by preferencesDataStore(na
 
 data class FivePlayPreferences(
     val serverUrl: String = "https://fiveplay.lol",
-    val defaultProfile: ControlProfile = ControlProfile.ON_FOOT,
+    val defaultProfile: ControlProfile = ControlProfile.XBOX_GAMEPAD,
     val mouseControlMode: MouseControlMode = MouseControlMode.VIRTUAL_CURSOR,
     val movementStyle: MovementStyle = MovementStyle.ANALOG_STICK,
-    val controlOpacity: Float = 0.80f,
+    val controlOpacity: Float = 0.78f,
     val controlScale: Float = 1.0f,
     val mouseSensitivity: Float = 1.65f,
     val invertYAxis: Boolean = false,
@@ -30,7 +30,7 @@ data class FivePlayPreferences(
     val desktopUserAgent: Boolean = true,
     val webGlFpsBoost: Boolean = true,
     val autoSprintOnEdge: Boolean = true,
-    val showQuickTopBar: Boolean = true,
+    val showQuickTopBar: Boolean = false,
     val showPhoneArrows: Boolean = true,
     val slotKeyBindings: Map<ActionSlot, String> = ActionSlot.entries.associateWith { it.defaultKeyId }
 )
@@ -56,8 +56,8 @@ class SettingsRepository(private val context: Context) {
     }
 
     val preferencesFlow: Flow<FivePlayPreferences> = context.dataStore.data.map { prefs ->
-        val profileName = prefs[Keys.DEFAULT_PROFILE] ?: ControlProfile.ON_FOOT.name
-        val profile = runCatching { ControlProfile.valueOf(profileName) }.getOrDefault(ControlProfile.ON_FOOT)
+        val profileName = prefs[Keys.DEFAULT_PROFILE] ?: ControlProfile.XBOX_GAMEPAD.name
+        val profile = runCatching { ControlProfile.valueOf(profileName) }.getOrDefault(ControlProfile.XBOX_GAMEPAD)
 
         val mouseModeName = prefs[Keys.MOUSE_MODE] ?: MouseControlMode.VIRTUAL_CURSOR.name
         val mouseMode = runCatching { MouseControlMode.valueOf(mouseModeName) }.getOrDefault(MouseControlMode.VIRTUAL_CURSOR)
@@ -82,7 +82,7 @@ class SettingsRepository(private val context: Context) {
             desktopUserAgent = prefs[Keys.DESKTOP_USER_AGENT] ?: true,
             webGlFpsBoost = prefs[Keys.WEBGL_FPS_BOOST] ?: true,
             autoSprintOnEdge = prefs[Keys.AUTO_SPRINT_ON_EDGE] ?: true,
-            showQuickTopBar = prefs[Keys.SHOW_QUICK_TOP_BAR] ?: true,
+            showQuickTopBar = prefs[Keys.SHOW_QUICK_TOP_BAR] ?: false,
             showPhoneArrows = prefs[Keys.SHOW_PHONE_ARROWS] ?: true,
             slotKeyBindings = bindings
         )

@@ -36,10 +36,10 @@ class ExampleRobolectricTest {
     fun `viewmodel cycles control profiles cleanly`() {
         val app = ApplicationProvider.getApplicationContext<Application>()
         val vm = FivePlayViewModel(app)
+        assertEquals(ControlProfile.XBOX_GAMEPAD, vm.runtimeFlow.value.activeProfile)
+        vm.cycleControlProfile()
         assertEquals(ControlProfile.ON_FOOT, vm.runtimeFlow.value.activeProfile)
         vm.cycleControlProfile()
         assertEquals(ControlProfile.DRIVING, vm.runtimeFlow.value.activeProfile)
-        vm.cycleControlProfile()
-        assertEquals(ControlProfile.XBOX_GAMEPAD, vm.runtimeFlow.value.activeProfile)
     }
 }

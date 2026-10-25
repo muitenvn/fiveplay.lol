@@ -58,7 +58,6 @@ import com.example.model.PcKeySpec
 import com.example.ui.theme.CyberSurface
 import com.example.ui.theme.DangerRed
 import com.example.ui.theme.ElectricBlue
-import com.example.ui.theme.HudGlass
 import com.example.ui.theme.LosSantosGold
 import com.example.ui.theme.NeonEmerald
 import com.example.ui.theme.ViceMagenta
@@ -72,6 +71,7 @@ fun VirtualControlsOverlay(
     onCursorTapClick: () -> Unit,
     onWheelScroll: (Int) -> Unit,
     onStickVector: (Float, Float) -> Unit,
+    onRightStickVector: (Float, Float) -> Unit = { _, _ -> },
     onCycleProfile: () -> Unit,
     onToggleMouseMode: () -> Unit,
     onToggleMoveStyle: () -> Unit,
@@ -96,7 +96,6 @@ fun VirtualControlsOverlay(
             .windowInsetsPadding(WindowInsets.safeDrawing)
     ) {
         // 1. Virtual Mouse & 3D Camera Trackpad Surface
-        // In TOUCH_ONLY mode, covers full screen; otherwise covers the right 62% of screen
         Row(modifier = Modifier.fillMaxSize()) {
             if (runtime.controlsVisible && runtime.activeProfile != ControlProfile.TOUCH_ONLY) {
                 Spacer(modifier = Modifier.weight(0.38f))
@@ -113,7 +112,7 @@ fun VirtualControlsOverlay(
             )
         }
 
-        // 2. Crisp Virtual PC Mouse Pointer Arrow & 3D Crosshair Layer (replaces giant touch blob!)
+        // 2. Crisp Virtual PC Mouse Pointer Arrow & 3D Crosshair Layer
         VirtualMouseCursorOverlay(
             cursorNormX = runtime.cursorNormX,
             cursorNormY = runtime.cursorNormY,
@@ -122,7 +121,7 @@ fun VirtualControlsOverlay(
             modifier = Modifier.fillMaxSize()
         )
 
-        // 3. Profile-specific controls layer
+        // 3. Profile-specific Console Controls Layer
         AnimatedVisibility(
             visible = runtime.controlsVisible && runtime.activeProfile != ControlProfile.TOUCH_ONLY,
             enter = fadeIn(),
@@ -130,6 +129,17 @@ fun VirtualControlsOverlay(
             modifier = Modifier.fillMaxSize()
         ) {
             when (runtime.activeProfile) {
+                ControlProfile.XBOX_GAMEPAD -> XboxGamepadLayout(
+                    uiState = uiState,
+                    scale = scale,
+                    opacity = opacity,
+                    haptics = haptics,
+                    onKeyStateChanged = onKeyStateChanged,
+                    onMouseDelta = { dx, dy -> onMouseDelta(dx, dy, 1000f, 600f) },
+                    onStickVector = onStickVector,
+                    onRightStickVector = onRightStickVector
+                )
+
                 ControlProfile.ON_FOOT -> OnFootControlsLayout(
                     uiState = uiState,
                     scale = scale,
@@ -149,21 +159,11 @@ fun VirtualControlsOverlay(
                     onKeyStateChanged = onKeyStateChanged
                 )
 
-                ControlProfile.XBOX_GAMEPAD -> XboxGamepadLayout(
-                    uiState = uiState,
-                    scale = scale,
-                    opacity = opacity,
-                    haptics = haptics,
-                    onKeyStateChanged = onKeyStateChanged,
-                    onMouseDelta = { dx, dy -> onMouseDelta(dx, dy, 1000f, 600f) },
-                    onStickVector = onStickVector
-                )
-
                 ControlProfile.TOUCH_ONLY -> Unit
             }
         }
 
-        // 4. Top Floating Cyber-HUD Bar + Quick PC Key Strip (1-5, F1-F8, ESC, TAB, I, M, P, T)
+        // 4. Sleek Top Console Pill Bar + Optional Quick PC Key Strip
         Column(
             modifier = Modifier
                 .align(Alignment.TopCenter)
@@ -190,7 +190,7 @@ fun VirtualControlsOverlay(
                     opacity = opacity,
                     haptics = haptics,
                     onKeyStateChanged = onKeyStateChanged,
-                    modifier = Modifier.fillMaxWidth(0.95f)
+                    modifier = Modifier.fillMaxWidth(0.92f)
                 )
             }
         }
@@ -233,47 +233,63 @@ private fun FloatingCyberHud(
 
     Surface(
         modifier = modifier.testTag("floating_cyber_hud"),
-        color = HudGlass,
-        shape = RoundedCornerShape(24.dp),
-        border = androidx.compose.foundation.BorderStroke(1.dp, NeonEmerald.copy(alpha = 0.45f))
+        color = Color(0x880B101B),
+        shape = RoundedCornerShape(22.dp),
+        border = androidx.compose.foundation.BorderStroke(1.dp, Color(0x40E2E8F0))
     ) {
         Row(
             modifier = Modifier.padding(horizontal = 8.dp, vertical = 3.dp),
             verticalAlignment = Alignment.CenterVertically,
             horizontalArrangement = Arrangement.spacedBy(5.dp)
         ) {
-            // Live FPS Badge + Expand/Collapse HUD
             Row(
                 modifier = Modifier
-                    .clip(RoundedCornerShape(16.dp))
-                    .background(CyberSurface)
+                    .clip(RoundedCornerShape(14.dp))
+                    .background(CyberSurface.copy(alpha = 0.75f))
                     .clickable(onClick = onToggleHud)
-                    .padding(horizontal = 8.dp, vertical = 5.dp)
+                    .padding(horizontal = 8.dp, vertical = 4.dp)
                     .testTag("hud_toggle_expand"),
                 verticalAlignment = Alignment.CenterVertically,
                 horizontalArrangement = Arrangement.spacedBy(5.dp)
             ) {
                 Box(
                     modifier = Modifier
-                        .size(7.dp)
+                        .size(6.dp)
                         .clip(CircleShape)
                         .background(if (runtime.currentFps >= 45) NeonEmerald else LosSantosGold)
                 )
                 Text(
                     text = "${runtime.currentFps} FPS",
                     style = MaterialTheme.typography.labelLarge,
-                    color = NeonEmerald,
-                    fontSize = 11.sp
+                    color = Color.White,
+                    fontSize = 10.sp
                 )
                 Icon(
                     imageVector = Icons.Default.Tune,
                     contentDescription = "Thu/Mở HUD",
-                    tint = Color.White.copy(alpha = 0.8f),
-                    modifier = Modifier.size(13.dp)
+                    tint = Color.White.copy(alpha = 0.7f),
+                    modifier = Modifier.size(12.dp)
                 )
             }
 
-            // Virtual PC Mouse Mode Toggle (CHUỘT PC vs TÂM 3D)
+            HudChipButton(
+                icon = when (runtime.activeProfile) {
+                    ControlProfile.XBOX_GAMEPAD -> Icons.Default.Gamepad
+                    ControlProfile.ON_FOOT -> Icons.AutoMirrored.Filled.DirectionsRun
+                    ControlProfile.DRIVING -> Icons.Default.DirectionsCar
+                    ControlProfile.TOUCH_ONLY -> Icons.Default.VisibilityOff
+                },
+                label = when (runtime.activeProfile) {
+                    ControlProfile.XBOX_GAMEPAD -> "Tay Cầm"
+                    ControlProfile.ON_FOOT -> "Phím PC"
+                    ControlProfile.DRIVING -> "Lái Xe"
+                    ControlProfile.TOUCH_ONLY -> "Chỉ Chuột"
+                },
+                accent = NeonEmerald,
+                onClick = onCycleProfile,
+                testTag = "hud_cycle_profile_btn"
+            )
+
             HudChipButton(
                 icon = if (prefs.mouseControlMode == MouseControlMode.VIRTUAL_CURSOR) {
                     Icons.Default.Mouse
@@ -281,56 +297,37 @@ private fun FloatingCyberHud(
                     Icons.Default.AdsClick
                 },
                 label = prefs.mouseControlMode.badgeVi,
-                accent = NeonEmerald,
+                accent = LosSantosGold,
                 onClick = onToggleMouseMode,
                 testTag = "hud_mouse_mode_btn"
             )
 
-            // Quick Profile Switch (Đi Bộ / Lái Xe / Xbox)
-            HudChipButton(
-                icon = when (runtime.activeProfile) {
-                    ControlProfile.ON_FOOT -> Icons.AutoMirrored.Filled.DirectionsRun
-                    ControlProfile.DRIVING -> Icons.Default.DirectionsCar
-                    ControlProfile.XBOX_GAMEPAD -> Icons.Default.Gamepad
-                    ControlProfile.TOUCH_ONLY -> Icons.Default.VisibilityOff
-                },
-                label = when (runtime.activeProfile) {
-                    ControlProfile.ON_FOOT -> "Đi Bộ"
-                    ControlProfile.DRIVING -> "Lái Xe"
-                    ControlProfile.XBOX_GAMEPAD -> "Xbox"
-                    ControlProfile.TOUCH_ONLY -> "Chỉ Chuột"
-                },
-                accent = LosSantosGold,
-                onClick = onCycleProfile,
-                testTag = "hud_cycle_profile_btn"
-            )
-
-            // Toggle full on-screen PC Keyboard (QWERTY + F1-F8)
             HudChipButton(
                 icon = Icons.Default.Keyboard,
-                label = "Phím PC",
+                label = "Bàn Phím",
                 accent = if (runtime.showMiniPcKeyboard) ViceMagenta else ElectricBlue,
                 onClick = onToggleMiniPcKeyboard,
                 testTag = "hud_pc_keyboard_btn"
             )
 
-            // Show/Hide virtual keys
             HudIconAction(
                 icon = if (runtime.controlsVisible) Icons.Default.Visibility else Icons.Default.VisibilityOff,
-                contentDesc = "Ẩn/Hiện Phím",
+                contentDesc = "Ẩn/Hiện Tay Cầm",
                 tint = if (runtime.controlsVisible) NeonEmerald else Color.White,
                 onClick = onToggleControls,
                 testTag = "hud_visibility_btn"
             )
 
             if (runtime.hudExpanded) {
-                HudChipButton(
-                    icon = Icons.Default.Gamepad,
-                    label = if (prefs.movementStyle == MovementStyle.ANALOG_STICK) "Analog" else "WASD",
-                    accent = ElectricBlue,
-                    onClick = onToggleMoveStyle,
-                    testTag = "hud_move_style_btn"
-                )
+                if (runtime.activeProfile == ControlProfile.ON_FOOT) {
+                    HudChipButton(
+                        icon = Icons.Default.Gamepad,
+                        label = if (prefs.movementStyle == MovementStyle.ANALOG_STICK) "Analog" else "WASD",
+                        accent = ElectricBlue,
+                        onClick = onToggleMoveStyle,
+                        testTag = "hud_move_style_btn"
+                    )
+                }
                 HudIconAction(
                     icon = Icons.Default.ChatBubbleOutline,
                     contentDesc = "Gõ Chat (T)",
@@ -341,7 +338,7 @@ private fun FloatingCyberHud(
                 HudIconAction(
                     icon = Icons.Default.ScreenRotation,
                     contentDesc = "Xoay Ngang/Dọc",
-                    tint = LosSantosGold,
+                    tint = Color.White,
                     onClick = onToggleOrientation,
                     testTag = "hud_rotate_btn"
                 )
@@ -375,10 +372,10 @@ private fun HudChipButton(
     Row(
         modifier = Modifier
             .clip(RoundedCornerShape(14.dp))
-            .background(accent.copy(alpha = 0.18f))
-            .border(1.dp, accent.copy(alpha = 0.65f), RoundedCornerShape(14.dp))
+            .background(Color(0x55162032))
+            .border(1.dp, accent.copy(alpha = 0.5f), RoundedCornerShape(14.dp))
             .clickable(onClick = onClick)
-            .padding(horizontal = 8.dp, vertical = 5.dp)
+            .padding(horizontal = 8.dp, vertical = 4.dp)
             .testTag(testTag),
         verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = Arrangement.spacedBy(4.dp)
@@ -387,7 +384,7 @@ private fun HudChipButton(
             imageVector = icon,
             contentDescription = label,
             tint = accent,
-            modifier = Modifier.size(14.dp)
+            modifier = Modifier.size(13.dp)
         )
         Text(
             text = label,
@@ -409,15 +406,267 @@ private fun HudIconAction(
     IconButton(
         onClick = onClick,
         modifier = Modifier
-            .size(32.dp)
+            .size(30.dp)
             .testTag(testTag)
     ) {
         Icon(
             imageVector = icon,
             contentDescription = contentDesc,
             tint = tint,
-            modifier = Modifier.size(17.dp)
+            modifier = Modifier.size(16.dp)
         )
+    }
+}
+
+/**
+ * Primary Console Controller Layout (Xbox Wireless / PS5 DualSense Cloud Touch Style).
+ * Designed specifically for games with native HTML5 Gamepad API support + hybrid PC mouse/key fallback.
+ */
+@Composable
+private fun XboxGamepadLayout(
+    uiState: FivePlayUiState,
+    scale: Float,
+    opacity: Float,
+    haptics: Boolean,
+    onKeyStateChanged: (PcKeySpec, Boolean) -> Unit,
+    onMouseDelta: (Float, Float) -> Unit,
+    onStickVector: (Float, Float) -> Unit,
+    onRightStickVector: (Float, Float) -> Unit
+) {
+    val prefs = uiState.prefs
+    Box(
+        modifier = Modifier
+            .fillMaxSize()
+            .padding(horizontal = 14.dp, vertical = 8.dp)
+    ) {
+        // 1. Top-Left Shoulder Bumpers & Triggers: LT (L2) + LB (L1) + View/Select (⧉)
+        Row(
+            modifier = Modifier
+                .align(Alignment.TopStart)
+                .padding(top = 4.dp),
+            horizontalArrangement = Arrangement.spacedBy(8.dp),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            ConsoleShoulderButton(
+                label = "LT",
+                hint = "Ngắm/Phanh",
+                keySpec = PcKeyCatalog.MOUSE_RIGHT,
+                widthDp = (76 * scale).dp,
+                heightDp = (40 * scale).dp,
+                opacity = opacity,
+                accentColor = LosSantosGold,
+                hapticsEnabled = haptics,
+                onKeyStateChanged = onKeyStateChanged,
+                testTagName = "btn_xbox_lt"
+            )
+            ConsoleShoulderButton(
+                label = "LB",
+                hint = "Vũ khí",
+                keySpec = PcKeyCatalog.KEY_TAB,
+                widthDp = (68 * scale).dp,
+                heightDp = (38 * scale).dp,
+                opacity = opacity,
+                accentColor = ElectricBlue,
+                hapticsEnabled = haptics,
+                onKeyStateChanged = onKeyStateChanged,
+                testTagName = "btn_xbox_lb"
+            )
+            MiniSquareKeyButton(
+                label = "⧉ CAM",
+                keySpec = PcKeyCatalog.KEY_V,
+                sizeDp = (32 * scale).dp,
+                widthDp = (48 * scale).dp,
+                opacity = opacity,
+                accentColor = NeonEmerald,
+                hapticsEnabled = haptics,
+                onKeyStateChanged = onKeyStateChanged,
+                testTagName = "btn_xbox_select"
+            )
+        }
+
+        // 2. Top-Right Shoulder Bumpers & Triggers: Start/Menu (☰) + RB (R1) + RT (R2)
+        Row(
+            modifier = Modifier
+                .align(Alignment.TopEnd)
+                .padding(top = 4.dp),
+            horizontalArrangement = Arrangement.spacedBy(8.dp),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            MiniSquareKeyButton(
+                label = "☰ MAP",
+                keySpec = PcKeyCatalog.KEY_ESC,
+                sizeDp = (32 * scale).dp,
+                widthDp = (48 * scale).dp,
+                opacity = opacity,
+                accentColor = ViceMagenta,
+                hapticsEnabled = haptics,
+                onKeyStateChanged = onKeyStateChanged,
+                testTagName = "btn_xbox_start"
+            )
+            ConsoleShoulderButton(
+                label = "RB",
+                hint = "Nấp/Drift",
+                keySpec = PcKeyCatalog.KEY_Q,
+                widthDp = (68 * scale).dp,
+                heightDp = (38 * scale).dp,
+                opacity = opacity,
+                accentColor = ElectricBlue,
+                hapticsEnabled = haptics,
+                onKeyStateChanged = onKeyStateChanged,
+                testTagName = "btn_xbox_rb"
+            )
+            ConsoleShoulderButton(
+                label = "RT",
+                hint = "Bắn/Ga",
+                keySpec = PcKeyCatalog.MOUSE_LEFT,
+                widthDp = (78 * scale).dp,
+                heightDp = (42 * scale).dp,
+                opacity = opacity,
+                accentColor = DangerRed,
+                hapticsEnabled = haptics,
+                allowDragAim = true,
+                sensitivity = prefs.mouseSensitivity,
+                invertY = prefs.invertYAxis,
+                onKeyStateChanged = onKeyStateChanged,
+                onMouseDelta = onMouseDelta,
+                testTagName = "btn_xbox_rt"
+            )
+        }
+
+        // 3. Bottom-Left: Left Analog Stick (LS) + Cross-Shaped Console D-Pad (┼) + L3 Pill
+        Row(
+            modifier = Modifier
+                .align(Alignment.BottomStart)
+                .padding(start = 4.dp, bottom = 6.dp),
+            verticalAlignment = Alignment.Bottom,
+            horizontalArrangement = Arrangement.spacedBy(12.dp)
+        ) {
+            VirtualAnalogStick(
+                sizeDp = (134 * scale).dp,
+                opacity = opacity,
+                autoSprint = prefs.autoSprintOnEdge,
+                hapticsEnabled = haptics,
+                onKeyStateChanged = onKeyStateChanged,
+                onVectorChanged = onStickVector
+            )
+
+            Column(
+                horizontalAlignment = Alignment.CenterHorizontally,
+                verticalArrangement = Arrangement.spacedBy(6.dp)
+            ) {
+                MiniSquareKeyButton(
+                    label = "L3 (Ngồi/Còi)",
+                    keySpec = PcKeyCatalog.KEY_CTRL,
+                    sizeDp = (28 * scale).dp,
+                    widthDp = (74 * scale).dp,
+                    opacity = opacity,
+                    accentColor = NeonEmerald,
+                    hapticsEnabled = haptics,
+                    onKeyStateChanged = onKeyStateChanged,
+                    testTagName = "btn_xbox_l3"
+                )
+                ConsoleCrossDpad(
+                    sizeDp = (98 * scale).dp,
+                    opacity = opacity,
+                    hapticsEnabled = haptics,
+                    onKeyStateChanged = onKeyStateChanged
+                )
+            }
+        }
+
+        // 4. Bottom-Right: Right Camera Analog Stick (RS) + R3 + Authentic Diamond ABXY Face Buttons
+        Row(
+            modifier = Modifier
+                .align(Alignment.BottomEnd)
+                .padding(end = 4.dp, bottom = 6.dp),
+            verticalAlignment = Alignment.Bottom,
+            horizontalArrangement = Arrangement.spacedBy(10.dp)
+        ) {
+            // Right Analog Stick (controls Gamepad axes[2], axes[3] + 3D Camera Look) + R3
+            Column(
+                horizontalAlignment = Alignment.CenterHorizontally,
+                verticalArrangement = Arrangement.spacedBy(6.dp)
+            ) {
+                MiniSquareKeyButton(
+                    label = "R3 (Nhìn sau)",
+                    keySpec = PcKeyCatalog.KEY_C,
+                    sizeDp = (28 * scale).dp,
+                    widthDp = (74 * scale).dp,
+                    opacity = opacity,
+                    accentColor = ElectricBlue,
+                    hapticsEnabled = haptics,
+                    onKeyStateChanged = onKeyStateChanged,
+                    testTagName = "btn_xbox_r3"
+                )
+                RightCameraAnalogStick(
+                    sizeDp = (106 * scale).dp,
+                    opacity = opacity,
+                    sensitivity = prefs.mouseSensitivity,
+                    invertY = prefs.invertYAxis,
+                    hapticsEnabled = haptics,
+                    onRightStickAxesChanged = onRightStickVector,
+                    onCameraDelta = onMouseDelta
+                )
+            }
+
+            // Classic Console ABXY Diamond Cluster
+            Box(
+                modifier = Modifier.size((154 * scale).dp)
+            ) {
+                // Y (Top - Amber - Enter/Exit Vehicle F)
+                TacticalKeyButton(
+                    label = "Y",
+                    subLabel = "Vào Xe",
+                    keySpec = uiState.resolveKeySpec(ActionSlot.VEHICLE),
+                    sizeDp = (50 * scale).dp,
+                    opacity = opacity,
+                    accentColor = Color(0xFFFBBF24),
+                    hapticsEnabled = haptics,
+                    onKeyStateChanged = onKeyStateChanged,
+                    testTagName = "btn_xbox_y",
+                    modifier = Modifier.align(Alignment.TopCenter)
+                )
+                // X (Left - Sky Blue - Reload / Melee R)
+                TacticalKeyButton(
+                    label = "X",
+                    subLabel = "Nạp/Đánh",
+                    keySpec = uiState.resolveKeySpec(ActionSlot.RELOAD),
+                    sizeDp = (50 * scale).dp,
+                    opacity = opacity,
+                    accentColor = Color(0xFF60A5FA),
+                    hapticsEnabled = haptics,
+                    onKeyStateChanged = onKeyStateChanged,
+                    testTagName = "btn_xbox_x",
+                    modifier = Modifier.align(Alignment.CenterStart)
+                )
+                // B (Right - Crimson - Interact / Back E)
+                TacticalKeyButton(
+                    label = "B",
+                    subLabel = "Tương tác",
+                    keySpec = uiState.resolveKeySpec(ActionSlot.INTERACT),
+                    sizeDp = (50 * scale).dp,
+                    opacity = opacity,
+                    accentColor = Color(0xFFF87171),
+                    hapticsEnabled = haptics,
+                    onKeyStateChanged = onKeyStateChanged,
+                    testTagName = "btn_xbox_b",
+                    modifier = Modifier.align(Alignment.CenterEnd)
+                )
+                // A (Bottom - Emerald - Jump / Sprint Space)
+                TacticalKeyButton(
+                    label = "A",
+                    subLabel = "Nhảy/Chạy",
+                    keySpec = uiState.resolveKeySpec(ActionSlot.JUMP),
+                    sizeDp = (50 * scale).dp,
+                    opacity = opacity,
+                    accentColor = Color(0xFF34D399),
+                    hapticsEnabled = haptics,
+                    onKeyStateChanged = onKeyStateChanged,
+                    testTagName = "btn_xbox_a",
+                    modifier = Modifier.align(Alignment.BottomCenter)
+                )
+            }
+        }
     }
 }
 
@@ -436,32 +685,107 @@ private fun OnFootControlsLayout(
     Box(
         modifier = Modifier
             .fillMaxSize()
-            .padding(horizontal = 10.dp, vertical = 6.dp)
+            .padding(horizontal = 12.dp, vertical = 6.dp)
     ) {
-        // 1. Mid-LeftGTA Phone & Menu Navigation D-Pad (↑ ↓ ← → + ENTER + BACKSPACE)
-        if (prefs.showPhoneArrows) {
-            PhoneArrowCluster(
-                scale = scale,
+        // Top-Left & Top-Right Shoulder Triggers
+        Row(
+            modifier = Modifier.align(Alignment.TopStart).padding(top = 4.dp),
+            horizontalArrangement = Arrangement.spacedBy(8.dp)
+        ) {
+            ConsoleShoulderButton(
+                label = "NGẮM",
+                hint = "RMB",
+                keySpec = uiState.resolveKeySpec(ActionSlot.AIM),
+                widthDp = (74 * scale).dp,
+                heightDp = (38 * scale).dp,
                 opacity = opacity,
-                haptics = haptics,
+                accentColor = LosSantosGold,
+                hapticsEnabled = haptics,
+                allowDragAim = true,
+                sensitivity = prefs.mouseSensitivity,
+                invertY = prefs.invertYAxis,
                 onKeyStateChanged = onKeyStateChanged,
-                modifier = Modifier
-                    .align(Alignment.CenterStart)
-                    .padding(bottom = 64.dp)
+                onMouseDelta = onMouseDelta,
+                testTagName = "btn_onfoot_aim"
+            )
+            ConsoleShoulderButton(
+                label = "TAB",
+                hint = "Vũ khí",
+                keySpec = uiState.resolveKeySpec(ActionSlot.WEAPON),
+                widthDp = (66 * scale).dp,
+                heightDp = (38 * scale).dp,
+                opacity = opacity,
+                accentColor = ElectricBlue,
+                hapticsEnabled = haptics,
+                onKeyStateChanged = { spec, down ->
+                    onKeyStateChanged(spec, down)
+                    if (down) onWheelScroll(120)
+                },
+                testTagName = "btn_onfoot_weapon"
             )
         }
 
-        // 2. Bottom-Left Movement + Modifiers (SHIFT, CTRL, ALT)
+        Row(
+            modifier = Modifier.align(Alignment.TopEnd).padding(top = 4.dp),
+            horizontalArrangement = Arrangement.spacedBy(6.dp)
+        ) {
+            MiniSquareKeyButton(
+                label = "ESC",
+                keySpec = uiState.resolveKeySpec(ActionSlot.PAUSE),
+                sizeDp = (34 * scale).dp,
+                widthDp = (44 * scale).dp,
+                opacity = opacity,
+                accentColor = ViceMagenta,
+                hapticsEnabled = haptics,
+                onKeyStateChanged = onKeyStateChanged,
+                testTagName = "btn_onfoot_esc"
+            )
+            MiniSquareKeyButton(
+                label = "M",
+                keySpec = uiState.resolveKeySpec(ActionSlot.MENU_M),
+                sizeDp = (34 * scale).dp,
+                widthDp = (38 * scale).dp,
+                opacity = opacity,
+                accentColor = ElectricBlue,
+                hapticsEnabled = haptics,
+                onKeyStateChanged = onKeyStateChanged,
+                testTagName = "btn_onfoot_menu"
+            )
+            MiniSquareKeyButton(
+                label = "I",
+                keySpec = uiState.resolveKeySpec(ActionSlot.INVENTORY_I),
+                sizeDp = (34 * scale).dp,
+                widthDp = (38 * scale).dp,
+                opacity = opacity,
+                accentColor = LosSantosGold,
+                hapticsEnabled = haptics,
+                onKeyStateChanged = onKeyStateChanged,
+                testTagName = "btn_onfoot_inv"
+            )
+            MiniSquareKeyButton(
+                label = "V",
+                keySpec = uiState.resolveKeySpec(ActionSlot.CAMERA),
+                sizeDp = (34 * scale).dp,
+                widthDp = (38 * scale).dp,
+                opacity = opacity,
+                accentColor = NeonEmerald,
+                hapticsEnabled = haptics,
+                onKeyStateChanged = onKeyStateChanged,
+                testTagName = "btn_onfoot_cam"
+            )
+        }
+
+        // Bottom-Left Movement + Cross D-Pad + Modifiers (SHIFT, CTRL, ALT)
         Row(
             modifier = Modifier
                 .align(Alignment.BottomStart)
-                .padding(start = 4.dp, bottom = 4.dp),
+                .padding(start = 4.dp, bottom = 6.dp),
             verticalAlignment = Alignment.Bottom,
-            horizontalArrangement = Arrangement.spacedBy(8.dp)
+            horizontalArrangement = Arrangement.spacedBy(10.dp)
         ) {
             if (prefs.movementStyle == MovementStyle.ANALOG_STICK) {
                 VirtualAnalogStick(
-                    sizeDp = (134 * scale).dp,
+                    sizeDp = (132 * scale).dp,
                     opacity = opacity,
                     autoSprint = prefs.autoSprintOnEdge,
                     hapticsEnabled = haptics,
@@ -477,125 +801,57 @@ private fun OnFootControlsLayout(
                 )
             }
 
-            // Dedicated Left-Thumb Modifier Column: SHIFT (Sprint), CTRL (Crouch), ALT (Third-Eye), N (Mic)
             Column(
                 verticalArrangement = Arrangement.spacedBy(6.dp),
                 horizontalAlignment = Alignment.CenterHorizontally
             ) {
-                TacticalKeyButton(
-                    label = "ALT",
-                    subLabel = "Mắt thần",
-                    keySpec = uiState.resolveKeySpec(ActionSlot.ALT_EYE),
-                    sizeDp = (44 * scale).dp,
-                    opacity = opacity,
-                    accentColor = ElectricBlue,
-                    hapticsEnabled = haptics,
-                    onKeyStateChanged = onKeyStateChanged,
-                    testTagName = "btn_onfoot_alt"
-                )
-                TacticalKeyButton(
-                    label = "CTRL",
-                    subLabel = "Ngồi",
-                    keySpec = uiState.resolveKeySpec(ActionSlot.CROUCH),
-                    sizeDp = (46 * scale).dp,
-                    opacity = opacity,
-                    accentColor = LosSantosGold,
-                    hapticsEnabled = haptics,
-                    onKeyStateChanged = onKeyStateChanged,
-                    testTagName = "btn_onfoot_ctrl"
-                )
-                TacticalKeyButton(
-                    label = "SHIFT",
-                    subLabel = "Chạy",
-                    keySpec = uiState.resolveKeySpec(ActionSlot.SPRINT),
-                    sizeDp = (50 * scale).dp,
-                    opacity = opacity,
-                    accentColor = NeonEmerald,
-                    hapticsEnabled = haptics,
-                    onKeyStateChanged = onKeyStateChanged,
-                    testTagName = "btn_onfoot_shift"
-                )
+                Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                    MiniSquareKeyButton(
+                        label = "SHIFT",
+                        keySpec = uiState.resolveKeySpec(ActionSlot.SPRINT),
+                        sizeDp = (32 * scale).dp,
+                        widthDp = (48 * scale).dp,
+                        opacity = opacity,
+                        accentColor = NeonEmerald,
+                        hapticsEnabled = haptics,
+                        onKeyStateChanged = onKeyStateChanged,
+                        testTagName = "btn_onfoot_shift"
+                    )
+                    MiniSquareKeyButton(
+                        label = "CTRL",
+                        keySpec = uiState.resolveKeySpec(ActionSlot.CROUCH),
+                        sizeDp = (32 * scale).dp,
+                        widthDp = (46 * scale).dp,
+                        opacity = opacity,
+                        accentColor = LosSantosGold,
+                        hapticsEnabled = haptics,
+                        onKeyStateChanged = onKeyStateChanged,
+                        testTagName = "btn_onfoot_ctrl"
+                    )
+                }
+                if (prefs.showPhoneArrows) {
+                    ConsoleCrossDpad(
+                        sizeDp = (92 * scale).dp,
+                        opacity = opacity,
+                        hapticsEnabled = haptics,
+                        onKeyStateChanged = onKeyStateChanged
+                    )
+                }
             }
         }
 
-        // 3. Mid-Right Tactical Row (Scroll Wheel Up/Down, Q Cover, E Interact, G Seatbelt/Grenade, X HandsUp, C, V, N)
+        // Bottom-Right Ergonomic Action Arc (F, E, R, Q, G, Space, BẮN)
         Column(
             modifier = Modifier
-                .align(Alignment.CenterEnd)
-                .padding(bottom = 78.dp, end = 4.dp),
+                .align(Alignment.BottomEnd)
+                .padding(end = 4.dp, bottom = 6.dp),
             horizontalAlignment = Alignment.End,
-            verticalArrangement = Arrangement.spacedBy(6.dp)
+            verticalArrangement = Arrangement.spacedBy(8.dp)
         ) {
-            // Scroll wheel + Camera V + Mic N
-            Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
-                MiniSquareKeyButton(
-                    label = "LĂN ↑",
-                    keySpec = PcKeyCatalog.WHEEL_UP,
-                    sizeDp = (36 * scale).dp,
-                    widthDp = (46 * scale).dp,
-                    opacity = opacity,
-                    accentColor = LosSantosGold,
-                    hapticsEnabled = haptics,
-                    onKeyStateChanged = { spec, down ->
-                        onKeyStateChanged(spec, down)
-                        if (down) onWheelScroll(-120)
-                    },
-                    testTagName = "btn_wheel_up"
-                )
-                MiniSquareKeyButton(
-                    label = "LĂN ↓",
-                    keySpec = PcKeyCatalog.WHEEL_DOWN,
-                    sizeDp = (36 * scale).dp,
-                    widthDp = (46 * scale).dp,
-                    opacity = opacity,
-                    accentColor = LosSantosGold,
-                    hapticsEnabled = haptics,
-                    onKeyStateChanged = { spec, down ->
-                        onKeyStateChanged(spec, down)
-                        if (down) onWheelScroll(120)
-                    },
-                    testTagName = "btn_wheel_down"
-                )
-                MiniSquareKeyButton(
-                    label = "CAM V",
-                    keySpec = uiState.resolveKeySpec(ActionSlot.CAMERA),
-                    sizeDp = (36 * scale).dp,
-                    widthDp = (46 * scale).dp,
-                    opacity = opacity,
-                    accentColor = NeonEmerald,
-                    hapticsEnabled = haptics,
-                    onKeyStateChanged = onKeyStateChanged,
-                    testTagName = "btn_onfoot_cam"
-                )
-                MiniSquareKeyButton(
-                    label = "MIC N",
-                    keySpec = uiState.resolveKeySpec(ActionSlot.VOICE_N),
-                    sizeDp = (36 * scale).dp,
-                    widthDp = (46 * scale).dp,
-                    opacity = opacity,
-                    accentColor = ElectricBlue,
-                    hapticsEnabled = haptics,
-                    onKeyStateChanged = onKeyStateChanged,
-                    testTagName = "btn_onfoot_mic"
-                )
-            }
-
-            // Secondary Action Row: X (Hands Up), G (Grenade/Belt), C (Look back), Q (Cover)
-            Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
-                TacticalKeyButton(
-                    label = "X",
-                    subLabel = "Giơ tay",
-                    keySpec = uiState.resolveKeySpec(ActionSlot.HANDS_UP),
-                    sizeDp = (44 * scale).dp,
-                    opacity = opacity,
-                    accentColor = ViceMagenta,
-                    hapticsEnabled = haptics,
-                    onKeyStateChanged = onKeyStateChanged,
-                    testTagName = "btn_onfoot_x"
-                )
+            Row(horizontalArrangement = Arrangement.spacedBy(7.dp)) {
                 TacticalKeyButton(
                     label = "G",
-                    subLabel = "Lựu/Đai",
+                    subLabel = "Đai/Lựu",
                     keySpec = uiState.resolveKeySpec(ActionSlot.GRENADE),
                     sizeDp = (44 * scale).dp,
                     opacity = opacity,
@@ -603,17 +859,6 @@ private fun OnFootControlsLayout(
                     hapticsEnabled = haptics,
                     onKeyStateChanged = onKeyStateChanged,
                     testTagName = "btn_onfoot_g"
-                )
-                TacticalKeyButton(
-                    label = "C",
-                    subLabel = "Nhìn sau",
-                    keySpec = uiState.resolveKeySpec(ActionSlot.LOOK_BACK),
-                    sizeDp = (44 * scale).dp,
-                    opacity = opacity,
-                    accentColor = ElectricBlue,
-                    hapticsEnabled = haptics,
-                    onKeyStateChanged = onKeyStateChanged,
-                    testTagName = "btn_onfoot_c"
                 )
                 TacticalKeyButton(
                     label = "Q",
@@ -626,38 +871,11 @@ private fun OnFootControlsLayout(
                     onKeyStateChanged = onKeyStateChanged,
                     testTagName = "btn_onfoot_cover"
                 )
-            }
-        }
-
-        // 4. Bottom-Right Primary Combat, Mouse Click & Vehicle Cluster
-        Column(
-            modifier = Modifier
-                .align(Alignment.BottomEnd)
-                .padding(end = 4.dp, bottom = 4.dp),
-            horizontalAlignment = Alignment.End,
-            verticalArrangement = Arrangement.spacedBy(8.dp)
-        ) {
-            // Upper Arc: E (Interact), R (Reload), F (Enter/Exit Vehicle), RMB (Aim / Right Click)
-            Row(
-                horizontalArrangement = Arrangement.spacedBy(8.dp),
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                TacticalKeyButton(
-                    label = "E",
-                    subLabel = "Dùng/Còi",
-                    keySpec = uiState.resolveKeySpec(ActionSlot.INTERACT),
-                    sizeDp = (50 * scale).dp,
-                    opacity = opacity,
-                    accentColor = NeonEmerald,
-                    hapticsEnabled = haptics,
-                    onKeyStateChanged = onKeyStateChanged,
-                    testTagName = "btn_onfoot_interact"
-                )
                 TacticalKeyButton(
                     label = "R",
-                    subLabel = "Nạp/Đánh",
+                    subLabel = "Nạp đạn",
                     keySpec = uiState.resolveKeySpec(ActionSlot.RELOAD),
-                    sizeDp = (50 * scale).dp,
+                    sizeDp = (48 * scale).dp,
                     opacity = opacity,
                     accentColor = ElectricBlue,
                     hapticsEnabled = haptics,
@@ -665,10 +883,27 @@ private fun OnFootControlsLayout(
                     testTagName = "btn_onfoot_reload"
                 )
                 TacticalKeyButton(
-                    label = "VÀO XE",
-                    subLabel = "Phím F",
+                    label = "E",
+                    subLabel = "Dùng",
+                    keySpec = uiState.resolveKeySpec(ActionSlot.INTERACT),
+                    sizeDp = (48 * scale).dp,
+                    opacity = opacity,
+                    accentColor = NeonEmerald,
+                    hapticsEnabled = haptics,
+                    onKeyStateChanged = onKeyStateChanged,
+                    testTagName = "btn_onfoot_interact"
+                )
+            }
+
+            Row(
+                horizontalArrangement = Arrangement.spacedBy(10.dp),
+                verticalAlignment = Alignment.Bottom
+            ) {
+                TacticalKeyButton(
+                    label = "F",
+                    subLabel = "Vào Xe",
                     keySpec = uiState.resolveKeySpec(ActionSlot.VEHICLE),
-                    sizeDp = (54 * scale).dp,
+                    sizeDp = (52 * scale).dp,
                     opacity = opacity,
                     accentColor = LosSantosGold,
                     hapticsEnabled = haptics,
@@ -676,43 +911,10 @@ private fun OnFootControlsLayout(
                     testTagName = "btn_onfoot_vehicle"
                 )
                 TacticalKeyButton(
-                    label = "NGẮM",
-                    subLabel = "Chuột Phải",
-                    keySpec = uiState.resolveKeySpec(ActionSlot.AIM),
-                    sizeDp = (58 * scale).dp,
-                    opacity = opacity,
-                    accentColor = LosSantosGold,
-                    hapticsEnabled = haptics,
-                    allowDragAim = true,
-                    sensitivity = prefs.mouseSensitivity,
-                    invertY = prefs.invertYAxis,
-                    onKeyStateChanged = onKeyStateChanged,
-                    onMouseDelta = onMouseDelta,
-                    testTagName = "btn_onfoot_aim"
-                )
-            }
-
-            // Bottom Row: TAB (Weapon Wheel), SPACE (Jump), BẮN / CLICK TRÁI (LMB)
-            Row(
-                horizontalArrangement = Arrangement.spacedBy(10.dp),
-                verticalAlignment = Alignment.Bottom
-            ) {
-                TacticalKeyButton(
-                    label = "TAB",
-                    subLabel = "Kho Súng",
-                    keySpec = uiState.resolveKeySpec(ActionSlot.WEAPON),
-                    sizeDp = (52 * scale).dp,
-                    opacity = opacity,
-                    accentColor = LosSantosGold,
-                    hapticsEnabled = haptics,
-                    onKeyStateChanged = onKeyStateChanged,
-                    testTagName = "btn_onfoot_weapon"
-                )
-                TacticalKeyButton(
-                    label = "NHẢY",
-                    subLabel = "Space",
+                    label = "SPACE",
+                    subLabel = "Nhảy",
                     keySpec = uiState.resolveKeySpec(ActionSlot.JUMP),
-                    sizeDp = (58 * scale).dp,
+                    sizeDp = (54 * scale).dp,
                     opacity = opacity,
                     accentColor = NeonEmerald,
                     hapticsEnabled = haptics,
@@ -720,10 +922,10 @@ private fun OnFootControlsLayout(
                     testTagName = "btn_onfoot_jump"
                 )
                 TacticalKeyButton(
-                    label = "BẮN / CLICK",
-                    subLabel = "Chuột Trái",
+                    label = "BẮN",
+                    subLabel = "LMB",
                     keySpec = uiState.resolveKeySpec(ActionSlot.FIRE),
-                    sizeDp = (76 * scale).dp,
+                    sizeDp = (70 * scale).dp,
                     opacity = opacity,
                     accentColor = DangerRed,
                     hapticsEnabled = haptics,
@@ -752,83 +954,59 @@ private fun DrivingControlsLayout(
             .fillMaxSize()
             .padding(horizontal = 14.dp, vertical = 10.dp)
     ) {
-        // Left-Center Driving Accessories (Exit Car F, Seatbelt G, Horn E, Lights H, Lock L, Camera V, Look Back C)
-        Column(
-            modifier = Modifier
-                .align(Alignment.CenterStart)
-                .padding(bottom = 48.dp),
-            verticalArrangement = Arrangement.spacedBy(8.dp)
+        // Top Driving Row
+        Row(
+            modifier = Modifier.align(Alignment.TopStart).padding(top = 4.dp),
+            horizontalArrangement = Arrangement.spacedBy(8.dp)
         ) {
-            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                TacticalKeyButton(
-                    label = "RA XE",
-                    subLabel = "Phím F",
-                    keySpec = uiState.resolveKeySpec(ActionSlot.VEHICLE),
-                    sizeDp = (50 * scale).dp,
-                    opacity = opacity,
-                    accentColor = LosSantosGold,
-                    hapticsEnabled = haptics,
-                    onKeyStateChanged = onKeyStateChanged,
-                    testTagName = "btn_drive_exit"
-                )
-                TacticalKeyButton(
-                    label = "DÂY ĐAI",
-                    subLabel = "Phím G",
-                    keySpec = PcKeyCatalog.KEY_G,
-                    sizeDp = (48 * scale).dp,
-                    opacity = opacity,
-                    accentColor = NeonEmerald,
-                    hapticsEnabled = haptics,
-                    onKeyStateChanged = onKeyStateChanged,
-                    testTagName = "btn_drive_belt"
-                )
-                TacticalKeyButton(
-                    label = "KHÓA XE",
-                    subLabel = "Phím L",
-                    keySpec = PcKeyCatalog.KEY_L,
-                    sizeDp = (48 * scale).dp,
-                    opacity = opacity,
-                    accentColor = ElectricBlue,
-                    hapticsEnabled = haptics,
-                    onKeyStateChanged = onKeyStateChanged,
-                    testTagName = "btn_drive_lock"
-                )
-            }
-            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                TacticalKeyButton(
-                    label = "CÒI XE",
-                    subLabel = "Phím E",
-                    keySpec = uiState.resolveKeySpec(ActionSlot.INTERACT),
-                    sizeDp = (48 * scale).dp,
-                    opacity = opacity,
-                    accentColor = NeonEmerald,
-                    hapticsEnabled = haptics,
-                    onKeyStateChanged = onKeyStateChanged,
-                    testTagName = "btn_drive_horn"
-                )
-                TacticalKeyButton(
-                    label = "ĐÈN XE",
-                    subLabel = "Phím H",
-                    keySpec = PcKeyCatalog.KEY_H,
-                    sizeDp = (48 * scale).dp,
-                    opacity = opacity,
-                    accentColor = ElectricBlue,
-                    hapticsEnabled = haptics,
-                    onKeyStateChanged = onKeyStateChanged,
-                    testTagName = "btn_drive_lights"
-                )
-                TacticalKeyButton(
-                    label = "GÓC CAM",
-                    subLabel = "Phím V",
-                    keySpec = uiState.resolveKeySpec(ActionSlot.CAMERA),
-                    sizeDp = (48 * scale).dp,
-                    opacity = opacity,
-                    accentColor = ViceMagenta,
-                    hapticsEnabled = haptics,
-                    onKeyStateChanged = onKeyStateChanged,
-                    testTagName = "btn_drive_cam"
-                )
-            }
+            ConsoleShoulderButton(
+                label = "F",
+                hint = "Ra Xe",
+                keySpec = uiState.resolveKeySpec(ActionSlot.VEHICLE),
+                widthDp = (68 * scale).dp,
+                heightDp = (38 * scale).dp,
+                opacity = opacity,
+                accentColor = LosSantosGold,
+                hapticsEnabled = haptics,
+                onKeyStateChanged = onKeyStateChanged,
+                testTagName = "btn_drive_exit"
+            )
+            ConsoleShoulderButton(
+                label = "G",
+                hint = "Dây Đai",
+                keySpec = PcKeyCatalog.KEY_G,
+                widthDp = (68 * scale).dp,
+                heightDp = (38 * scale).dp,
+                opacity = opacity,
+                accentColor = NeonEmerald,
+                hapticsEnabled = haptics,
+                onKeyStateChanged = onKeyStateChanged,
+                testTagName = "btn_drive_belt"
+            )
+            ConsoleShoulderButton(
+                label = "E",
+                hint = "Còi Xe",
+                keySpec = uiState.resolveKeySpec(ActionSlot.INTERACT),
+                widthDp = (66 * scale).dp,
+                heightDp = (38 * scale).dp,
+                opacity = opacity,
+                accentColor = ElectricBlue,
+                hapticsEnabled = haptics,
+                onKeyStateChanged = onKeyStateChanged,
+                testTagName = "btn_drive_horn"
+            )
+            ConsoleShoulderButton(
+                label = "H",
+                hint = "Đèn Pha",
+                keySpec = PcKeyCatalog.KEY_H,
+                widthDp = (66 * scale).dp,
+                heightDp = (38 * scale).dp,
+                opacity = opacity,
+                accentColor = Color.White,
+                hapticsEnabled = haptics,
+                onKeyStateChanged = onKeyStateChanged,
+                testTagName = "btn_drive_lights"
+            )
         }
 
         // Bottom-Left Steering Left (A) & Right (D)
@@ -840,11 +1018,11 @@ private fun DrivingControlsLayout(
             verticalAlignment = Alignment.CenterVertically
         ) {
             PedalButton(
-                label = "◄ TRÁI",
-                subLabel = "Lái A",
+                label = "◄",
+                subLabel = "Trái (A)",
                 keySpec = PcKeyCatalog.KEY_A,
-                widthDp = (80 * scale).dp,
-                heightDp = (74 * scale).dp,
+                widthDp = (78 * scale).dp,
+                heightDp = (72 * scale).dp,
                 opacity = opacity,
                 accentColor = NeonEmerald,
                 hapticsEnabled = haptics,
@@ -852,11 +1030,11 @@ private fun DrivingControlsLayout(
                 testTagName = "btn_drive_left"
             )
             PedalButton(
-                label = "PHẢI ►",
-                subLabel = "Lái D",
+                label = "►",
+                subLabel = "Phải (D)",
                 keySpec = PcKeyCatalog.KEY_D,
-                widthDp = (80 * scale).dp,
-                heightDp = (74 * scale).dp,
+                widthDp = (78 * scale).dp,
+                heightDp = (72 * scale).dp,
                 opacity = opacity,
                 accentColor = NeonEmerald,
                 hapticsEnabled = haptics,
@@ -881,7 +1059,7 @@ private fun DrivingControlsLayout(
                     label = "NITRO",
                     subLabel = "Shift",
                     keySpec = PcKeyCatalog.KEY_SHIFT,
-                    sizeDp = (54 * scale).dp,
+                    sizeDp = (52 * scale).dp,
                     opacity = opacity,
                     accentColor = LosSantosGold,
                     hapticsEnabled = haptics,
@@ -889,10 +1067,10 @@ private fun DrivingControlsLayout(
                     testTagName = "btn_drive_nitro"
                 )
                 TacticalKeyButton(
-                    label = "DRIFT",
+                    label = "RB",
                     subLabel = "Phanh Tay",
                     keySpec = PcKeyCatalog.KEY_SPACE,
-                    sizeDp = (60 * scale).dp,
+                    sizeDp = (56 * scale).dp,
                     opacity = opacity,
                     accentColor = ViceMagenta,
                     hapticsEnabled = haptics,
@@ -901,11 +1079,11 @@ private fun DrivingControlsLayout(
                 )
             }
             PedalButton(
-                label = "PHANH",
-                subLabel = "Lùi (S)",
+                label = "LT",
+                subLabel = "Phanh/Lùi",
                 keySpec = PcKeyCatalog.KEY_S,
-                widthDp = (66 * scale).dp,
-                heightDp = (90 * scale).dp,
+                widthDp = (64 * scale).dp,
+                heightDp = (88 * scale).dp,
                 opacity = opacity,
                 accentColor = DangerRed,
                 hapticsEnabled = haptics,
@@ -913,180 +1091,16 @@ private fun DrivingControlsLayout(
                 testTagName = "btn_drive_brake"
             )
             PedalButton(
-                label = "GA",
-                subLabel = "Tăng tốc (W)",
+                label = "RT",
+                subLabel = "Chân Ga",
                 keySpec = PcKeyCatalog.KEY_W,
-                widthDp = (72 * scale).dp,
-                heightDp = (124 * scale).dp,
+                widthDp = (70 * scale).dp,
+                heightDp = (120 * scale).dp,
                 opacity = opacity,
                 accentColor = NeonEmerald,
                 hapticsEnabled = haptics,
                 onKeyStateChanged = onKeyStateChanged,
                 testTagName = "btn_drive_gas"
-            )
-        }
-    }
-}
-
-@Composable
-private fun XboxGamepadLayout(
-    uiState: FivePlayUiState,
-    scale: Float,
-    opacity: Float,
-    haptics: Boolean,
-    onKeyStateChanged: (PcKeySpec, Boolean) -> Unit,
-    onMouseDelta: (Float, Float) -> Unit,
-    onStickVector: (Float, Float) -> Unit
-) {
-    val prefs = uiState.prefs
-    Box(
-        modifier = Modifier
-            .fillMaxSize()
-            .padding(horizontal = 14.dp, vertical = 10.dp)
-    ) {
-        // Left Triggers LB / LT (placed below top strip)
-        Row(
-            modifier = Modifier
-                .align(Alignment.CenterStart)
-                .padding(bottom = 110.dp),
-            horizontalArrangement = Arrangement.spacedBy(10.dp)
-        ) {
-            TacticalKeyButton(
-                label = "LT",
-                subLabel = "Ngắm",
-                keySpec = PcKeyCatalog.MOUSE_RIGHT,
-                sizeDp = (54 * scale).dp,
-                opacity = opacity,
-                accentColor = LosSantosGold,
-                hapticsEnabled = haptics,
-                onKeyStateChanged = onKeyStateChanged,
-                testTagName = "btn_xbox_lt"
-            )
-            TacticalKeyButton(
-                label = "LB",
-                subLabel = "Kho Súng",
-                keySpec = PcKeyCatalog.KEY_TAB,
-                sizeDp = (50 * scale).dp,
-                opacity = opacity,
-                accentColor = ElectricBlue,
-                hapticsEnabled = haptics,
-                onKeyStateChanged = onKeyStateChanged,
-                testTagName = "btn_xbox_lb"
-            )
-        }
-
-        // Right Triggers RB / RT
-        Row(
-            modifier = Modifier
-                .align(Alignment.CenterEnd)
-                .padding(bottom = 110.dp),
-            horizontalArrangement = Arrangement.spacedBy(10.dp)
-        ) {
-            TacticalKeyButton(
-                label = "RB",
-                subLabel = "Ẩn Nấp",
-                keySpec = PcKeyCatalog.KEY_Q,
-                sizeDp = (50 * scale).dp,
-                opacity = opacity,
-                accentColor = ElectricBlue,
-                hapticsEnabled = haptics,
-                onKeyStateChanged = onKeyStateChanged,
-                testTagName = "btn_xbox_rb"
-            )
-            TacticalKeyButton(
-                label = "RT",
-                subLabel = "Bắn / Click",
-                keySpec = PcKeyCatalog.MOUSE_LEFT,
-                sizeDp = (56 * scale).dp,
-                opacity = opacity,
-                accentColor = DangerRed,
-                hapticsEnabled = haptics,
-                allowDragAim = true,
-                sensitivity = prefs.mouseSensitivity,
-                invertY = prefs.invertYAxis,
-                onKeyStateChanged = onKeyStateChanged,
-                onMouseDelta = onMouseDelta,
-                testTagName = "btn_xbox_rt"
-            )
-        }
-
-        // Left Analog Stick + D-Pad
-        Row(
-            modifier = Modifier
-                .align(Alignment.BottomStart)
-                .padding(start = 6.dp, bottom = 6.dp),
-            verticalAlignment = Alignment.Bottom,
-            horizontalArrangement = Arrangement.spacedBy(10.dp)
-        ) {
-            VirtualAnalogStick(
-                sizeDp = (132 * scale).dp,
-                opacity = opacity,
-                autoSprint = prefs.autoSprintOnEdge,
-                hapticsEnabled = haptics,
-                onKeyStateChanged = onKeyStateChanged,
-                onVectorChanged = onStickVector
-            )
-            PhoneArrowCluster(
-                scale = scale,
-                opacity = opacity,
-                haptics = haptics,
-                onKeyStateChanged = onKeyStateChanged
-            )
-        }
-
-        // Right ABXY Diamond Cluster
-        Box(
-            modifier = Modifier
-                .align(Alignment.BottomEnd)
-                .size((164 * scale).dp)
-        ) {
-            TacticalKeyButton(
-                label = "Y",
-                subLabel = "Vào Xe (F)",
-                keySpec = PcKeyCatalog.KEY_F,
-                sizeDp = (52 * scale).dp,
-                opacity = opacity,
-                accentColor = LosSantosGold,
-                hapticsEnabled = haptics,
-                onKeyStateChanged = onKeyStateChanged,
-                testTagName = "btn_xbox_y",
-                modifier = Modifier.align(Alignment.TopCenter)
-            )
-            TacticalKeyButton(
-                label = "X",
-                subLabel = "Nạp (R)",
-                keySpec = PcKeyCatalog.KEY_R,
-                sizeDp = (52 * scale).dp,
-                opacity = opacity,
-                accentColor = ElectricBlue,
-                hapticsEnabled = haptics,
-                onKeyStateChanged = onKeyStateChanged,
-                testTagName = "btn_xbox_x",
-                modifier = Modifier.align(Alignment.CenterStart)
-            )
-            TacticalKeyButton(
-                label = "B",
-                subLabel = "Dùng (E)",
-                keySpec = PcKeyCatalog.KEY_E,
-                sizeDp = (52 * scale).dp,
-                opacity = opacity,
-                accentColor = DangerRed,
-                hapticsEnabled = haptics,
-                onKeyStateChanged = onKeyStateChanged,
-                testTagName = "btn_xbox_b",
-                modifier = Modifier.align(Alignment.CenterEnd)
-            )
-            TacticalKeyButton(
-                label = "A",
-                subLabel = "Nhảy",
-                keySpec = PcKeyCatalog.KEY_SPACE,
-                sizeDp = (52 * scale).dp,
-                opacity = opacity,
-                accentColor = NeonEmerald,
-                hapticsEnabled = haptics,
-                onKeyStateChanged = onKeyStateChanged,
-                testTagName = "btn_xbox_a",
-                modifier = Modifier.align(Alignment.BottomCenter)
             )
         }
     }

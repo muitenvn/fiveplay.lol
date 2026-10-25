@@ -28,7 +28,7 @@ enum class AppMode {
 
 data class RuntimeGameState(
     val appMode: AppMode = AppMode.HUB,
-    val activeProfile: ControlProfile = ControlProfile.ON_FOOT,
+    val activeProfile: ControlProfile = ControlProfile.XBOX_GAMEPAD,
     val controlsVisible: Boolean = true,
     val isLandscapeLocked: Boolean = true,
     val hudExpanded: Boolean = true,
@@ -46,7 +46,7 @@ data class RuntimeGameState(
     val cursorNormY: Float = 0.50f,
     val isCursorClicking: Boolean = false,
     val activePressedCodes: Set<String> = emptySet(),
-    val lastInputLog: String = "Sẵn sàng: Con trỏ Chuột PC & Tay cầm Full Phím GTA 5",
+    val lastInputLog: String = "Sẵn sàng: Tay Cầm Console (Xbox/PS5) & Con trỏ Chuột PC",
     val testerStickX: Float = 0f,
     val testerStickY: Float = 0f,
     val testerCameraYaw: Float = 0f,
@@ -92,7 +92,7 @@ class FivePlayViewModel(application: Application) : AndroidViewModel(application
                     activeProfile = currentPrefs.defaultProfile,
                     isLandscapeLocked = landscape,
                     controlsVisible = currentPrefs.defaultProfile != ControlProfile.TOUCH_ONLY,
-                    hudExpanded = true
+                    hudExpanded = false
                 )
             }
         }
@@ -123,10 +123,10 @@ class FivePlayViewModel(application: Application) : AndroidViewModel(application
     fun cycleControlProfile() {
         val current = runtimeState.value.activeProfile
         val next = when (current) {
+            ControlProfile.XBOX_GAMEPAD -> ControlProfile.ON_FOOT
             ControlProfile.ON_FOOT -> ControlProfile.DRIVING
             ControlProfile.DRIVING -> ControlProfile.XBOX_GAMEPAD
-            ControlProfile.XBOX_GAMEPAD -> ControlProfile.ON_FOOT
-            ControlProfile.TOUCH_ONLY -> ControlProfile.ON_FOOT
+            ControlProfile.TOUCH_ONLY -> ControlProfile.XBOX_GAMEPAD
         }
         setActiveProfile(next)
     }

@@ -266,6 +266,9 @@ fun GameWebViewScreen(
                 viewModel.updateTesterStick(nx, ny)
                 FivePlayJsBridge.dispatchGamepadAxes(webViewRef, nx, ny, 0f, 0f)
             },
+            onRightStickVector = { rx, ry ->
+                FivePlayJsBridge.dispatchRightGamepadAxes(webViewRef, rx, ry)
+            },
             onCycleProfile = {
                 FivePlayJsBridge.releaseAllInputs(webViewRef)
                 viewModel.cycleControlProfile()

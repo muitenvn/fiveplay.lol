@@ -99,15 +99,31 @@ object FivePlayJsBridge {
                 };
             } catch (e) {}
 
+            // Full W3C Standard XInput Gamepad Emulation
             const virtualGamepad = {
-                id: "Xbox 360 Controller (XInput STANDARD GAMEPAD)",
+                id: "Xbox Wireless Controller (STANDARD GAMEPAD Vendor: 045e Product: 02ea)",
                 index: 0,
                 connected: true,
                 timestamp: performance.now(),
                 mapping: "standard",
                 axes: [0.0, 0.0, 0.0, 0.0],
-                buttons: Array.from({ length: 17 }, () => ({ pressed: false, touched: false, value: 0.0 }))
+                buttons: Array.from({ length: 17 }, () => ({ pressed: false, touched: false, value: 0.0 })),
+                vibrationActuator: null
             };
+
+            let gamepadAnnounced = false;
+            function announceGamepadConnected() {
+                try {
+                    virtualGamepad.timestamp = performance.now();
+                    const gpEvent = new Event('gamepadconnected');
+                    gpEvent.gamepad = virtualGamepad;
+                    window.dispatchEvent(gpEvent);
+                    if (typeof window.ongamepadconnected === 'function') {
+                        window.ongamepadconnected(gpEvent);
+                    }
+                    gamepadAnnounced = true;
+                } catch (e) {}
+            }
 
             try {
                 navigator.getGamepads = function() {
@@ -115,13 +131,9 @@ object FivePlayJsBridge {
                     return [virtualGamepad, null, null, null];
                 };
                 navigator.webkitGetGamepads = navigator.getGamepads;
-                setTimeout(() => {
-                    try {
-                        const gpEvent = new Event('gamepadconnected');
-                        gpEvent.gamepad = virtualGamepad;
-                        window.dispatchEvent(gpEvent);
-                    } catch (e) {}
-                }, 400);
+                setTimeout(announceGamepadConnected, 300);
+                setTimeout(announceGamepadConnected, 1500);
+                setTimeout(announceGamepadConnected, 3500);
             } catch (e) {}
 
             let virtualCursorX = window.innerWidth / 2;
@@ -160,12 +172,18 @@ object FivePlayJsBridge {
             }
 
             window.__fivePlayBridge = {
-                sendKey: function(key, code, keyCode, isDown, gpIndex) {
+                setGamepadButton: function(gpIndex, isDown) {
+                    if (!gamepadAnnounced) announceGamepadConnected();
                     if (typeof gpIndex === 'number' && gpIndex >= 0 && gpIndex < 17) {
                         virtualGamepad.buttons[gpIndex].pressed = isDown;
                         virtualGamepad.buttons[gpIndex].touched = isDown;
                         virtualGamepad.buttons[gpIndex].value = isDown ? 1.0 : 0.0;
+                        virtualGamepad.timestamp = performance.now();
                     }
+                },
+
+                sendKey: function(key, code, keyCode, isDown, gpIndex) {
+                    this.setGamepadButton(gpIndex, isDown);
                     if (isDown) {
                         if (heldKeys.has(code)) return;
                         heldKeys.add(code);
@@ -181,14 +199,10 @@ object FivePlayJsBridge {
                 },
 
                 sendMouseButtonAt: function(normX, normY, button, isDown, gpIndex) {
+                    this.setGamepadButton(gpIndex, isDown);
                     if (typeof normX === 'number' && typeof normY === 'number' && normX >= 0 && normY >= 0) {
                         virtualCursorX = Math.max(0, Math.min(window.innerWidth - 1, normX * window.innerWidth));
                         virtualCursorY = Math.max(0, Math.min(window.innerHeight - 1, normY * window.innerHeight));
-                    }
-                    if (typeof gpIndex === 'number' && gpIndex >= 0 && gpIndex < 17) {
-                        virtualGamepad.buttons[gpIndex].pressed = isDown;
-                        virtualGamepad.buttons[gpIndex].touched = isDown;
-                        virtualGamepad.buttons[gpIndex].value = isDown ? 1.0 : 0.0;
                     }
                     const bit = (button === 0) ? 1 : (button === 2 ? 2 : 4);
                     if (isDown) {
@@ -270,8 +284,10 @@ object FivePlayJsBridge {
                 },
 
                 setGamepadAxis: function(axisIndex, value) {
+                    if (!gamepadAnnounced) announceGamepadConnected();
                     if (axisIndex >= 0 && axisIndex < 4) {
                         virtualGamepad.axes[axisIndex] = value;
+                        virtualGamepad.timestamp = performance.now();
                     }
                 },
 
@@ -282,8 +298,8 @@ object FivePlayJsBridge {
                         active.dispatchEvent(new Event('input', { bubbles: true }));
                         active.dispatchEvent(new Event('change', { bubbles: true }));
                     }
-                    this.sendKey('Enter', 'Enter', 13, true, -1);
-                    setTimeout(() => this.sendKey('Enter', 'Enter', 13, false, -1), 60);
+                    this.sendKey('Enter', 'Enter', 13, true, 0);
+                    setTimeout(() => this.sendKey('Enter', 'Enter', 13, false, 0), 60);
                 },
 
                 releaseAll: function() {
@@ -295,9 +311,11 @@ object FivePlayJsBridge {
                     activeMouseButtonsMask = 0;
                     for (let i = 0; i < 17; i++) {
                         virtualGamepad.buttons[i].pressed = false;
+                        virtualGamepad.buttons[i].touched = false;
                         virtualGamepad.buttons[i].value = 0.0;
                     }
                     virtualGamepad.axes = [0.0, 0.0, 0.0, 0.0];
+                    virtualGamepad.timestamp = performance.now();
                 }
             };
 
@@ -382,6 +400,19 @@ object FivePlayJsBridge {
             if (window.__fivePlayBridge) {
                 window.__fivePlayBridge.setGamepadAxis(0, $leftX);
                 window.__fivePlayBridge.setGamepadAxis(1, $leftY);
+                window.__fivePlayBridge.setGamepadAxis(2, $rightX);
+                window.__fivePlayBridge.setGamepadAxis(3, $rightY);
+            }
+            """.trimIndent(),
+            null
+        )
+    }
+
+    fun dispatchRightGamepadAxes(webView: WebView?, rightX: Float, rightY: Float) {
+        val wv = webView ?: return
+        wv.evaluateJavascript(
+            """
+            if (window.__fivePlayBridge) {
                 window.__fivePlayBridge.setGamepadAxis(2, $rightX);
                 window.__fivePlayBridge.setGamepadAxis(3, $rightY);
             }
